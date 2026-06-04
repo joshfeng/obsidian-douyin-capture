@@ -60,7 +60,7 @@ python web/app.py
 2. 解压到库目录：
 
    ```
-   <你的 Vault>/.obsidian/plugins/obsidian-douyin-capture/
+   <你的 Vault>/.obsidian/plugins/douyin-capture/
    ├── main.js
    ├── manifest.json
    ├── styles.css
@@ -83,7 +83,7 @@ npm install
 npm run build
 ```
 
-将**整个插件目录**（含生成的 `main.js`）放入 `.obsidian/plugins/obsidian-douyin-capture/`，或在开发时用符号链接指向该目录。
+将**整个插件目录**（含生成的 `main.js`）放入 `.obsidian/plugins/douyin-capture/`，或在开发时用符号链接指向该目录。
 
 
 ### 3. 配置插件
@@ -183,10 +183,10 @@ npm run build    # 生产构建 → main.js
 
 ## 发布检查清单
 
-向 [Obsidian 社区插件仓库](https://github.com/obsidianmd/obsidian-releases) 提交前建议确认：
+向 [Obsidian 社区插件目录](https://community.obsidian.md) 提交前建议确认：
 
-- [ ] `manifest.json` 中 `version`、`minAppVersion`、`description` 正确  
-- [ ] `versions.json` 与 `manifest.json` 版本一致  
+- [ ] `manifest.json`：`id` = `douyin-capture`，`version` = `1.0.0`，`minAppVersion` 正确  
+- [ ] `versions.json` 含 `"1.0.0": "1.4.0"`，与 manifest 一致  
 - [ ] 已执行 `npm run build`，**Release 附件包含 `main.js`**（仓库 `.gitignore` 忽略 `main.js`，发布时需单独打包）  
 - [ ] README 中说明**必须安装本地后端**（社区审核关注点）  
 - [ ] `LICENSE` 与仓库一致（MIT）  

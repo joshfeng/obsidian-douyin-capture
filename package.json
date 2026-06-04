@@ -1,6 +1,6 @@
 {
-  "name": "obsidian-douyin-capture",
-  "version": "0.1.0",
+  "name": "douyin-capture",
+  "version": "1.0.0",
   "description": "Obsidian plugin for Douyin content capture via local backend",
   "main": "main.js",
   "scripts": {
