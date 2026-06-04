@@ -2,6 +2,22 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+Import Douyin share links or pasted share text into your vault. Download no-watermark videos, post images, and captions, then create structured notes with titles, topics, tags, and frontmatter. Video posts can be transcribed to Simplified Chinese with a local Whisper backend. All media stays on your machine.
+
+> **Required:** This plugin needs the local Python service [obsidian-content-capture-backend](https://github.com/lyxdream/obsidian-content-capture-backend). Install and run it before using the plugin. Nothing is sent to a cloud service.
+
+**Desktop only** (Obsidian 1.4.0+). Default backend URL: `http://127.0.0.1:5050`.
+
+### Quick start
+
+1. Clone and run the backend (`python web/app.py` after `pip install -r requirements.txt`; FFmpeg required for video transcription).
+2. Install this plugin from [Releases](https://github.com/lyxdream/obsidian-douyin-capture/releases) into `.obsidian/plugins/douyin-capture/` (`main.js`, `manifest.json`, `styles.css`).
+3. Enable **Douyin Capture** in Settings → Community plugins.
+
+---
+
+## 中文说明
+
 将抖音分享链接一键导入 Obsidian：在本地提取**视频 / 配图 / 文案**，自动生成结构化笔记。
 
 > **重要**：本插件依赖本地 Python 后端 [obsidian-content-capture-backend](https://github.com/lyxdream/obsidian-content-capture-backend)，不会在云端处理你的链接或媒体。请先安装并启动后端，再使用插件。
