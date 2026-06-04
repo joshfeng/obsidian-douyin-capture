@@ -3,7 +3,7 @@
   "name": "Douyin Capture",
   "version": "1.0.0",
   "minAppVersion": "1.4.0",
-  "description": "粘贴抖音分享链接，调用本地后端提取文案与媒体并写入 Vault。需配合 obsidian-content-capture-backend。",
+  "description": "Import Douyin share links into notes with media, images, and transcripts. Requires a separate local Python backend (see README).",
   "author": "lyxdream",
   "authorUrl": "https://github.com/lyxdream",
   "isDesktopOnly": true
