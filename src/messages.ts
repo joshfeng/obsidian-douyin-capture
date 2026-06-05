@@ -5,7 +5,7 @@ export const MSG = {
     extract: { main: "正在提取内容…", sub: "请勿关闭 Obsidian" },
     extractVideo: {
       main: "正在提取视频文案…",
-      sub: "本地 Whisper 转写可能需要数分钟",
+      sub: "本地 Whisper 转写可能需要2-3分钟",
     },
     extractImage: { main: "正在下载图文…", sub: "通常几秒完成" },
     videoOnly: { main: "正在下载视频…", sub: "跳过语音转写，通常较快" },

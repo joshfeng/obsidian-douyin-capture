@@ -74,6 +74,7 @@ export class ExtractModal extends Modal {
       return [
         MSG.steps.health,
         MSG.steps.resolve,
+        MSG.steps.download,
         MSG.steps.videoOnly,
         MSG.steps.vault,
       ];
@@ -81,32 +82,72 @@ export class ExtractModal extends Modal {
     return [
       MSG.steps.health,
       MSG.steps.resolve,
+      MSG.steps.download,
+      MSG.steps.audio,
       MSG.steps.whisper,
       MSG.steps.vault,
     ];
   }
 
-  private showProgress(labels: string[]): void {
+  private backendStepRange(mode: ExtractMode): { start: number; end: number } {
+    if (mode === "video_only") {
+      return { start: 1, end: 3 };
+    }
+    return { start: 1, end: 4 };
+  }
+
+  private vaultStepIndex(mode: ExtractMode): number {
+    return this.buildSteps(mode).length - 1;
+  }
+
+  private loadingCopy(mode: ExtractMode): { main: string; sub: string; hint: string } {
+    if (mode === "video_only") {
+      return {
+        main: "提取中",
+        sub: MSG.loading.videoOnly.main,
+        hint: MSG.loading.videoOnly.sub,
+      };
+    }
+    return {
+      main: "提取中",
+      sub: MSG.loading.extractVideo.main,
+      hint: `${MSG.loading.extractVideo.sub}，请勿关闭 Obsidian`,
+    };
+  }
+
+  private showProgress(mode: ExtractMode): void {
     if (!this.progressEl) return;
     this.progressEl.removeClass("is-hidden");
-    const stepsWrap = this.progressEl.querySelector(".douyin-modal-steps");
-    if (!stepsWrap) {
-      const ul = this.progressEl.createEl("ul", { cls: "douyin-modal-steps" });
-      this.renderStepList(ul, labels);
-      return;
-    }
-    stepsWrap.empty();
+    this.progressEl.empty();
     this.stepEls = [];
-    this.renderStepList(stepsWrap as HTMLElement, labels);
+
+    const copy = this.loadingCopy(mode);
+    const panel = this.progressEl.createDiv({ cls: "douyin-progress-panel" });
+
+    const header = panel.createDiv({ cls: "douyin-progress-header" });
+    header.createDiv({ cls: "douyin-progress-spinner" });
+    const textWrap = header.createDiv({ cls: "douyin-progress-text" });
+    textWrap.createDiv({ cls: "douyin-progress-main", text: copy.main });
+    textWrap.createDiv({ cls: "douyin-progress-sub", text: copy.sub });
+
+    panel.createEl("p", {
+      cls: "douyin-progress-hint",
+      text: copy.hint,
+    });
+    panel.createDiv({ cls: "douyin-progress-section", text: "处理进度" });
+
+    const ul = panel.createEl("ul", { cls: "douyin-modal-steps" });
+    this.renderStepList(ul, this.buildSteps(mode));
   }
 
   private renderStepList(container: HTMLElement, labels: string[]): void {
-    for (const label of labels) {
+    labels.forEach((label, index) => {
       const li = container.createEl("li", { cls: "douyin-step is-pending" });
+      li.dataset.stepIndex = String(index + 1);
       li.createSpan({ cls: "douyin-step-dot" });
       li.createSpan({ cls: "douyin-step-label", text: label });
       this.stepEls.push(li);
-    }
+    });
   }
 
   private setStep(index: number, state: StepState): void {
@@ -114,36 +155,56 @@ export class ExtractModal extends Modal {
     if (!el) return;
     el.removeClass("is-pending", "is-active", "is-done");
     el.addClass(`is-${state}`);
+    const dot = el.querySelector(".douyin-step-dot");
+    if (dot) {
+      dot.empty();
+      if (state === "active") {
+        dot.setText(String(index + 1));
+      }
+    }
   }
 
   private markStepsDone(until: number): void {
     for (let i = 0; i < until; i++) this.setStep(i, "done");
   }
 
-  private startExtractSubsteps(mode: ExtractMode, stepIndex: number): void {
+  private startBackendSubsteps(mode: ExtractMode): void {
     this.stopRotateTimer();
-    const subs =
-      mode === "video_only"
-        ? [MSG.steps.resolve, MSG.steps.download, MSG.steps.videoOnly]
-        : [
-            MSG.steps.resolve,
-            MSG.steps.download,
-            MSG.steps.audio,
-            MSG.steps.whisper,
-          ];
-    let i = 0;
-    const labelEl = this.stepEls[stepIndex]?.querySelector(".douyin-step-label");
-    if (labelEl) labelEl.textContent = subs[0];
+    const { start, end } = this.backendStepRange(mode);
+    const quickSteps: number[] = [];
+    for (let i = start; i < end; i++) quickSteps.push(i);
 
-    this.rotateTimer = window.setInterval(() => {
-      i = (i + 1) % subs.length;
-      if (labelEl) labelEl.textContent = subs[i];
-    }, 3500);
+    const finishQuickSteps = (index: number): void => {
+      if (index >= quickSteps.length) {
+        this.setStep(end, "active");
+        return;
+      }
+      const step = quickSteps[index];
+      this.setStep(step, "active");
+      this.rotateTimer = window.setTimeout(() => {
+        this.setStep(step, "done");
+        finishQuickSteps(index + 1);
+      }, 480);
+    };
+
+    if (quickSteps.length === 0) {
+      this.setStep(end, "active");
+    } else {
+      finishQuickSteps(0);
+    }
+  }
+
+  private finishBackendSubsteps(mode: ExtractMode): void {
+    this.stopRotateTimer();
+    const { end } = this.backendStepRange(mode);
+    for (let i = 1; i <= end; i++) {
+      this.setStep(i, "done");
+    }
   }
 
   private stopRotateTimer(): void {
     if (this.rotateTimer != null) {
-      window.clearInterval(this.rotateTimer);
+      window.clearTimeout(this.rotateTimer);
       this.rotateTimer = null;
     }
   }
@@ -156,28 +217,24 @@ export class ExtractModal extends Modal {
       return;
     }
 
-    this.showProgress(this.buildSteps(mode));
+    this.showProgress(mode);
     this.running = true;
     this.setButtonsEnabled(false);
+
+    const vaultIndex = this.vaultStepIndex(mode);
 
     try {
       await this.plugin.runExtractFlow(trimmed, {
         mode,
+        vaultStepIndex: vaultIndex,
         onStep: (index, state) => {
           if (state === "active") {
             this.markStepsDone(index);
             this.setStep(index, "active");
-            if (index === 1) this.startExtractSubsteps(mode, 1);
+            if (index === 1) this.startBackendSubsteps(mode);
           } else if (state === "done") {
-            if (index === 1) this.stopRotateTimer();
-            this.setStep(index, "done");
-            const labels = this.buildSteps(mode);
-            const labelEl = this.stepEls[index]?.querySelector(
-              ".douyin-step-label"
-            );
-            if (labelEl && labels[index]) {
-              labelEl.textContent = labels[index];
-            }
+            if (index === 1) this.finishBackendSubsteps(mode);
+            else this.setStep(index, "done");
           }
         },
       });

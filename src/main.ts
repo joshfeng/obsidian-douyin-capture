@@ -18,6 +18,7 @@ export type ExtractStepState = "active" | "done";
 
 export interface ExtractFlowOptions {
   mode?: ExtractMode;
+  vaultStepIndex?: number;
   onStep?: (index: number, state: ExtractStepState) => void;
 }
 
@@ -145,6 +146,7 @@ export default class DouyinCapturePlugin extends Plugin {
     const mode = options.mode ?? "full";
     const onStep = options.onStep;
     const videoOnly = mode === "video_only";
+    const vaultStep = options.vaultStepIndex ?? (videoOnly ? 4 : 5);
 
     onStep?.(0, "active");
     const health = await checkHealth(this.settings.serverUrl);
@@ -175,8 +177,6 @@ export default class DouyinCapturePlugin extends Plugin {
       return;
     }
     onStep?.(1, "done");
-    onStep?.(2, "active");
-    onStep?.(2, "done");
 
     if (!data.success) {
       this.noticeError(
@@ -195,7 +195,7 @@ export default class DouyinCapturePlugin extends Plugin {
       return;
     }
 
-    onStep?.(3, "active");
+    onStep?.(vaultStep, "active");
     try {
       const result = await writeNoteFromExtract(
         this.app,
@@ -203,7 +203,7 @@ export default class DouyinCapturePlugin extends Plugin {
         data,
         { videoOnly }
       );
-      onStep?.(3, "done");
+      onStep?.(vaultStep, "done");
 
       if (result.partial && result.partialNotice) {
         this.noticeSuccess(result.partialNotice);
