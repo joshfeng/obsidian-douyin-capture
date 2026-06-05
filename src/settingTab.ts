@@ -44,9 +44,14 @@ export class DouyinSettingTab extends PluginSettingTab {
       .setName("Whisper 模型")
       .setDesc("仅视频转写时使用")
       .addDropdown((drop) => {
-        ["tiny", "base", "small", "medium", "large-v2", "large-v3"].forEach(
-          (m) => drop.addOption(m, m)
-        );
+        drop.addOptions({
+          tiny: "tiny",
+          base: "base",
+          small: "small",
+          medium: "medium",
+          "large-v2": "large-v2",
+          "large-v3": "large-v3",
+        });
         drop.setValue(this.plugin.settings.whisperModel).onChange((v) => {
           this.plugin.settings.whisperModel = v;
           void this.plugin.saveSettings();

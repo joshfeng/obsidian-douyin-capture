@@ -80,10 +80,8 @@ function escapeYaml(value: string): string {
 }
 
 function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
-  return buf.buffer.slice(
-    buf.byteOffset,
-    buf.byteOffset + buf.byteLength
-  ) as ArrayBuffer;
+  const copy = Uint8Array.from(buf);
+  return copy.buffer;
 }
 
 async function ensureFolder(app: App, folderPath: string): Promise<void> {
