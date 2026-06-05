@@ -22,7 +22,7 @@ export async function checkHealth(
     if (resp.status !== 200) {
       return { ok: false, status: resp.status };
     }
-    const data = JSON.parse(resp.text);
+    const data = JSON.parse(resp.text) as { success?: boolean };
     return { ok: data.success === true };
   } catch (e) {
     return { ok: false, error: String(e) };
@@ -50,7 +50,7 @@ export async function extractContent(
 
   let data: ExtractResponse;
   try {
-    data = JSON.parse(resp.text);
+    data = JSON.parse(resp.text) as ExtractResponse;
   } catch {
     throw new Error("INVALID_JSON");
   }

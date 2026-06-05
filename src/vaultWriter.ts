@@ -79,6 +79,13 @@ function escapeYaml(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
+function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
+  return buf.buffer.slice(
+    buf.byteOffset,
+    buf.byteOffset + buf.byteLength
+  ) as ArrayBuffer;
+}
+
 async function ensureFolder(app: App, folderPath: string): Promise<void> {
   const norm = normalizePath(folderPath);
   if (app.vault.getAbstractFileByPath(norm)) return;
@@ -104,12 +111,12 @@ async function copyToVaultBinary(
     const norm = normalizePath(vaultRelPath);
     const dir = norm.split("/").slice(0, -1).join("/");
     if (dir) await ensureFolder(app, dir);
-    const buf = await fs.readFile(srcAbs);
+    const data = bufferToArrayBuffer(await fs.readFile(srcAbs));
     const existing = app.vault.getAbstractFileByPath(norm);
     if (existing instanceof TFile) {
-      await app.vault.modifyBinary(existing, buf);
+      await app.vault.modifyBinary(existing, data);
     } else {
-      await app.vault.createBinary(norm, buf);
+      await app.vault.createBinary(norm, data);
     }
     return true;
   } catch {

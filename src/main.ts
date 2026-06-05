@@ -59,11 +59,10 @@ export default class DouyinCapturePlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign(
-      {},
-      DEFAULT_SETTINGS,
-      await this.loadData()
-    );
+    const saved = (await this.loadData()) as
+      | Partial<DouyinPluginSettings>
+      | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
   }
 
   async saveSettings(): Promise<void> {
@@ -82,10 +81,20 @@ export default class DouyinCapturePlugin extends Plugin {
     const r = await checkHealth(this.settings.serverUrl);
     if (!r.ok) {
       this.setStatusBar(MSG.statusBar.disconnected, () => {
-        this.app.setting.open();
-        this.app.setting.openTabById(this.manifest.id);
+        this.openSettingsTab();
       });
     }
+  }
+
+  private openSettingsTab(): void {
+    const appWithSettings = this.app as typeof this.app & {
+      setting?: {
+        open(): void;
+        openTabById(tabId: string): void;
+      };
+    };
+    appWithSettings.setting?.open();
+    appWithSettings.setting?.openTabById(this.manifest.id);
   }
 
   private statusBarEl: HTMLElement | null = null;

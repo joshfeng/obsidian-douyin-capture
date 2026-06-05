@@ -12,7 +12,7 @@ export class DouyinSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Douyin Capture" });
+    new Setting(containerEl).setName("Douyin Capture").setHeading();
 
     containerEl.createEl("p", {
       text: "需先启动本地后端 obsidian-content-capture-backend（python web/app.py）",
@@ -31,11 +31,13 @@ export class DouyinSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setValue(this.plugin.settings.serverUrl)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.serverUrl = value.trim();
-            await this.plugin.saveSettings();
-            statusEl.setText(MSG.settings.checking);
-            statusEl.setText(await this.plugin.checkBackendStatus());
+            void (async () => {
+              await this.plugin.saveSettings();
+              statusEl.setText(MSG.settings.checking);
+              statusEl.setText(await this.plugin.checkBackendStatus());
+            })();
           })
       );
 
@@ -46,9 +48,9 @@ export class DouyinSettingTab extends PluginSettingTab {
         ["tiny", "base", "small", "medium", "large-v2", "large-v3"].forEach(
           (m) => drop.addOption(m, m)
         );
-        drop.setValue(this.plugin.settings.whisperModel).onChange(async (v) => {
+        drop.setValue(this.plugin.settings.whisperModel).onChange((v) => {
           this.plugin.settings.whisperModel = v;
-          await this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         });
       });
 
@@ -57,9 +59,9 @@ export class DouyinSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setValue(this.plugin.settings.noteFolder)
-          .onChange(async (v) => {
+          .onChange((v) => {
             this.plugin.settings.noteFolder = v.trim() || "Douyin";
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           })
       );
 
@@ -68,10 +70,10 @@ export class DouyinSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setValue(this.plugin.settings.attachmentFolder)
-          .onChange(async (v) => {
+          .onChange((v) => {
             this.plugin.settings.attachmentFolder =
               v.trim() || "attachments/douyin";
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           })
       );
 
@@ -81,9 +83,9 @@ export class DouyinSettingTab extends PluginSettingTab {
       .addToggle((t) =>
         t
           .setValue(this.plugin.settings.embedVideo)
-          .onChange(async (v) => {
+          .onChange((v) => {
             this.plugin.settings.embedVideo = v;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           })
       );
 
@@ -92,16 +94,18 @@ export class DouyinSettingTab extends PluginSettingTab {
       .addToggle((t) =>
         t
           .setValue(this.plugin.settings.openNoteAfterCreate)
-          .onChange(async (v) => {
+          .onChange((v) => {
             this.plugin.settings.openNoteAfterCreate = v;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           })
       );
 
     new Setting(containerEl).addButton((btn) =>
-      btn.setButtonText("检查后端连接").onClick(async () => {
-        statusEl.setText(MSG.settings.checking);
-        statusEl.setText(await this.plugin.checkBackendStatus());
+      btn.setButtonText("检查后端连接").onClick(() => {
+        void (async () => {
+          statusEl.setText(MSG.settings.checking);
+          statusEl.setText(await this.plugin.checkBackendStatus());
+        })();
       })
     );
   }
