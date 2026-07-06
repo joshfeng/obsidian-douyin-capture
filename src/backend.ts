@@ -1,10 +1,7 @@
 import { requestUrl } from "obsidian";
-import { promises as fs } from "fs";
-import { join } from "path";
 import type {
   DouyinPluginSettings,
   ExtractResponse,
-  MetaJson,
 } from "./settings";
 
 function normalizeBaseUrl(url: string): string {
@@ -19,9 +16,11 @@ export async function checkHealth(
       url: `${normalizeBaseUrl(serverUrl)}/api/health`,
       method: "GET",
     });
+
     if (resp.status !== 200) {
       return { ok: false, status: resp.status };
     }
+
     const data = JSON.parse(resp.text) as { success?: boolean };
     return { ok: data.success === true };
   } catch (e) {
@@ -37,6 +36,7 @@ export async function extractContent(
   mode: ExtractMode = "full"
 ): Promise<ExtractResponse> {
   const base = normalizeBaseUrl(settings.serverUrl);
+
   const resp = await requestUrl({
     url: `${base}/api/video/extract`,
     method: "POST",
@@ -45,6 +45,7 @@ export async function extractContent(
       url: shareUrl,
       model: settings.whisperModel,
       skip_transcribe: mode === "video_only",
+      mode: mode === "video_only" ? "video_only" : "full",
     }),
   });
 
@@ -60,18 +61,5 @@ export async function extractContent(
     return { success: false, error: err };
   }
 
-  const meta = await readMetaJson(data.out_dir);
-  if (meta?.source_url) {
-    data.source_url = meta.source_url;
-  }
   return data;
-}
-
-async function readMetaJson(outDir: string): Promise<MetaJson | null> {
-  try {
-    const raw = await fs.readFile(join(outDir, "meta.json"), "utf-8");
-    return JSON.parse(raw) as MetaJson;
-  } catch {
-    return null;
-  }
 }
