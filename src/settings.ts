@@ -23,9 +23,11 @@ export interface ExtractResult {
   author: string;
   content_type: "video" | "image";
   download_url: string;
+  video_url?: string;
   text: string;
-  out_dir: string;
+  out_dir?: string;
   images: string[];
+  image_urls?: string[];
   source_url?: string;
 }
 
