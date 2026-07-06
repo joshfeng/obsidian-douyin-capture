@@ -1,6 +1,5 @@
 import { App, TFile, normalizePath } from "obsidian";
-import { promises as fs } from "fs";
-import { join } from "path";
+import { App, TFile, normalizePath, requestUrl } from "obsidian";
 import type { DouyinPluginSettings, ExtractResult } from "./settings";
 import { MSG } from "./messages";
 
@@ -79,11 +78,6 @@ function escapeYaml(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
-  const copy = Uint8Array.from(buf);
-  return copy.buffer;
-}
-
 async function ensureFolder(app: App, folderPath: string): Promise<void> {
   const norm = normalizePath(folderPath);
   if (app.vault.getAbstractFileByPath(norm)) return;
@@ -100,25 +94,53 @@ async function uniqueNotePath(app: App, basePath: string): Promise<string> {
   return normalizePath(`${basePath}-${Date.now()}.md`);
 }
 
-async function copyToVaultBinary(
+async function downloadBinary(url: string): Promise<ArrayBuffer> {
+  const resp = await requestUrl({
+    url,
+    method: "GET",
+  });
+
+  if (resp.status >= 400) {
+    throw new Error(`HTTP_DOWNLOAD_FAILED:${resp.status}:${url}`);
+  }
+
+  return resp.arrayBuffer;
+}
+
+async function saveUrlToVaultBinary(
   app: App,
   vaultRelPath: string,
-  srcAbs: string
+  url: string
 ): Promise<boolean> {
   try {
     const norm = normalizePath(vaultRelPath);
     const dir = norm.split("/").slice(0, -1).join("/");
     if (dir) await ensureFolder(app, dir);
-    const data = bufferToArrayBuffer(await fs.readFile(srcAbs));
+
+    const data = await downloadBinary(url);
+
     const existing = app.vault.getAbstractFileByPath(norm);
     if (existing instanceof TFile) {
       await app.vault.modifyBinary(existing, data);
     } else {
       await app.vault.createBinary(norm, data);
     }
+
     return true;
   } catch {
     return false;
+  }
+}
+
+function extFromUrl(url: string, fallback = "jpg"): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const m = pathname.match(/\.([a-zA-Z0-9]+)$/);
+    return m ? m[1].toLowerCase() : fallback;
+  } catch {
+    const clean = url.split("?")[0];
+    const m = clean.match(/\.([a-zA-Z0-9]+)$/);
+    return m ? m[1].toLowerCase() : fallback;
   }
 }
 
@@ -165,14 +187,13 @@ export async function writeNoteFromExtract(
   }
 
   if (isVideo) {
-    const videoSrc = join(data.out_dir, "video.mp4");
     const videoRel = normalizePath(`${attachBase}/video.mp4`);
     let copied = false;
-    try {
-      await fs.access(videoSrc);
-      copied = await copyToVaultBinary(app, videoRel, videoSrc);
-    } catch {
-      copied = false;
+
+    const videoUrl = data.video_url || data.download_url;
+
+    if (videoUrl) {
+      copied = await saveUrlToVaultBinary(app, videoRel, videoUrl);
     }
 
     if (copied && settings.embedVideo) {
@@ -183,49 +204,47 @@ export async function writeNoteFromExtract(
       partial = true;
       partialNotice = MSG.success.partialVideo;
       bodyParts.push(
-        `> ⚠️ **视频未能导入到笔记库**\n>\n> 文案已成功提取。本地文件可能不存在或拷贝失败。\n>\n> - 后端目录：\`${data.out_dir}\`\n> - 无水印链接：[点击下载](${data.download_url})\n`
+        `> ⚠️ **视频未能导入到笔记库**\n>\n` +
+        `> 文案已成功提取，但 HTTP 下载失败。\n>\n` +
+        `> - 视频地址：${videoUrl || "无"}\n`
       );
     }
   } else {
     bodyParts.push(`## 配图\n`);
-    const imagesDir = join(data.out_dir, "images");
-    let files: string[] = [];
-    try {
-      const entries = await fs.readdir(imagesDir);
-      files = entries
-        .filter((f) => /\.(jpe?g|png|webp|gif)$/i.test(f))
-        .sort();
-    } catch {
-      files = [];
-    }
+    const imageUrls = data.images?.length
+      ? data.images
+      : data.image_urls ?? [];
 
     let okCount = 0;
     const failNames: string[] = [];
 
-    for (const name of files) {
-      const src = join(imagesDir, name);
+    for (let i = 0; i < imageUrls.length; i++) {
+      const url = imageUrls[i];
+      const ext = extFromUrl(url);
+      const name = `${String(i + 1).padStart(2, "0")}.${ext}`;
       const rel = normalizePath(`${attachBase}/${name}`);
-      const ok = await copyToVaultBinary(app, rel, src);
+
+      const ok = await saveUrlToVaultBinary(app, rel, url);
+
       if (ok) {
         okCount++;
         bodyParts.push(`![[${rel}]]\n`);
       } else {
         failNames.push(name);
-        bodyParts.push(
-          `> ⚠️ 配图 ${name} 导入失败（后端：\`${src}\`）\n`
-        );
+        bodyParts.push(`> ⚠️ 配图 ${name} 导入失败：${url}\n`);
       }
     }
 
-    if (files.length === 0) {
+    if (imageUrls.length === 0) {
       bodyParts.push(
-        `> ℹ️ **未包含配图**\n> 该作品可能无图片，或下载失败。配文如下。\n`
+        `> ℹ️ **未包含配图**\n> 该作品可能无图片，或后端没有返回 images 字段。\n`
       );
     } else if (failNames.length > 0) {
       partial = true;
       partialNotice = MSG.success.partialImages(failNames.length);
       bodyParts.push(
-        `\n> ⚠️ **以下配图未能导入：** ${failNames.join(", ")}  \n> 已成功导入 ${okCount}/${files.length} 张。可在后端目录查看：\`${imagesDir}\`\n`
+        `\n> ⚠️ **以下配图未能导入：** ${failNames.join(", ")}\n` +
+        `> 已成功导入 ${okCount}/${imageUrls.length} 张。\n`
       );
     }
   }
